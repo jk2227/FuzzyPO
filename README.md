@@ -21,7 +21,7 @@ User Feedback:      interface.response(True or False)
 
 Get Json String:    s = interface.recommender_json_str()
 
-Construct from Json String:
+Construct a new JRecInterface object from Json String:
                     interface_t = JRecInterface(recommender_json_str=s)
 
 See Also: Example.py
