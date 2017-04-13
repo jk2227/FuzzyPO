@@ -1,4 +1,4 @@
-# JRec
+# JRec (Fuzzy Partial Ordering Version)
 
 Required Python Package:
 CaboCha-0.69, MeCab 0.996 
@@ -18,5 +18,10 @@ Get a New Article:  req = interface.request()
                     req.text //Text
                     
 User Feedback:      interface.response(True or False)
+
+Get Json String:    s = interface.recommender_json_str()
+
+Construct from Json String:
+                    interface_t = JRecInterface(recommender_json_str=s)
 
 See Also: Example.py
