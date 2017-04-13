@@ -298,18 +298,26 @@ class Knowledge:
         ###############################
         ###############################
         # Easier Graph
+        MAX_JSON_SIZE = 1024*1024*20 - 1
         self.easier_graph = []
 
-        f = open("Text/easier_graph_json.txt")
-        ln = 0
-        for line in f:
-            s = line[:-1]
-            if len(s) > 3:
-                self.easier_graph = json.loads(s)
-                # print "Read easier_graph Complete."
-            f.close()
-            break
-        if  len(self.easier_graph) == 0:
+        s = ""
+        i = 0
+        while True:
+            fn = "Json/easier_graph_json_" + str(i) + ".txt"
+            try:
+                f = open(fn)
+            except:
+                break
+            else:
+                for line in f:
+                    s += line[:-1]
+                    break
+                f.close()
+                i += 1
+        if len(s) > 10:
+            self.easier_graph = json.loads(s)
+        else:
             self.easier_graph = []
             if fuzzy == 1.0:
                 for i in range(len(self.data)):
@@ -319,9 +327,17 @@ class Knowledge:
                     self.easier_graph.append([self.data[i].fuzzy_easier(self.data[j], fuzzy, self.ConceptWeight) for j in range(len(self.data))])
                     if i%10 == 0:
                         print i
-            f = open("Text/easier_graph_json.txt","w")
-            f.write(json.dumps(self.easier_graph)+"\n")
-            f.close()
+            i = 0
+            p = 0
+            s = json.dumps(self.easier_graph)
+            print len(s)
+            while p < len(s):
+                q = min(p+MAX_JSON_SIZE, len(s))
+                f = open("Json/easier_graph_json_" + str(i) + ".txt","w")
+                f.write(s[p:q]+"\n")
+                p = q
+                f.close()
+                i += 1
 
         # Every Process is Unique
 
