@@ -80,9 +80,14 @@ def convert_text_to_articles(fn='Text/nhk_easy.txt', if_article=True, if_para=Tr
                     if not if_sentence:
                         continue
                     sentences = re.split('。', paras[pid].strip())
+                    # if only one sentence in this paragraph
+                    if len(sentences) <= 1 or (len(sentences) == 2 and len(sentences[1].strip()) == 0):
+                        #print paras[pid].strip()
+                        continue
                     for sid in xrange(len(sentences)):
                         news_para_sentence_id = news_para_id + '_s' + str(sid + 1)
                         if (len(sentences[sid].strip())) > 0:
+                            # TODO: May encounter problems when last character is not '。'
                             articles[news_para_sentence_id] = Article(news_para_sentence_id,
                                                                       sentences[sid].strip() + '。')
                             # print news_para_sentence_id, sentences[sid].strip()

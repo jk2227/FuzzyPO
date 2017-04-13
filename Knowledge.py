@@ -2,6 +2,7 @@ import Utl
 import copy
 import random
 import Japanese
+import json
 
 from collections import Counter as mset
 
@@ -24,6 +25,9 @@ class Process:
         self.sentence = ""
         self.sorted_data = sorted(self.data)
         self.concept = set(self.data)
+
+        # Optional
+        self.doc_id = ""
 
     def easier(self, that):
         if len(self.data) > len(that.data):
@@ -238,11 +242,14 @@ class Knowledge:
             all_uniq_wl = list(set(all_uniq_wl))
             word_index = {all_uniq_wl[i]:i + 10000 for i in range(len(all_uniq_wl))}
 
+            self.doc_id_to_id = {}
+
             for article in articles.values():
-                # Sentence Only
-                if article.doc_id.find("_s") == -1:
+                # Paragraphs and Sentences
+                if article.doc_id.find("_p") == -1:
                     continue
                 p = Process(len(self.data), [word_index[w] for w in article.wordlist])
+                p.doc_id = article.doc_id
                 #########################################################################
                 #########################################################################
                 # TODO: Here process with no concept will be dropped.
@@ -253,6 +260,7 @@ class Knowledge:
                     continue
                 self.data.append(p)
                 self.data[-1].sentence = article.text
+                self.doc_id_to_id[self.data[-1].doc_id] = len(self.data) - 1
 
         ############################
         # Concepts
@@ -281,7 +289,7 @@ class Knowledge:
         for i in range(len(t)):
             #if i < 0.01 * len(t):
             if t[i] in indexed_stoplist:
-                self.ConceptWeight[t[i]] = 0
+                self.ConceptWeight[t[i]] = 1
             else:
                 self.ConceptWeight[t[i]] = 1
 
@@ -292,21 +300,40 @@ class Knowledge:
         # Easier Graph
         self.easier_graph = []
 
-        if fuzzy == 1.0:
-            for i in range(len(self.data)):
-                self.easier_graph.append([self.data[i].easier(self.data[j]) for j in range(len(self.data))])
-        else:
-            for i in range(len(self.data)):
-                self.easier_graph.append([self.data[i].fuzzy_easier(self.data[j], fuzzy, self.ConceptWeight) for j in range(len(self.data))])
-                if i%10 == 0:
-                    print i
+        f = open("Text/easier_graph_json.txt")
+        ln = 0
+        for line in f:
+            s = line[:-1]
+            if len(s) > 3:
+                self.easier_graph = json.loads(s)
+                # print "Read easier_graph Complete."
+            f.close()
+            break
+        if  len(self.easier_graph) == 0:
+            self.easier_graph = []
+            if fuzzy == 1.0:
+                for i in range(len(self.data)):
+                    self.easier_graph.append([self.data[i].easier(self.data[j]) for j in range(len(self.data))])
+            else:
+                for i in range(len(self.data)):
+                    self.easier_graph.append([self.data[i].fuzzy_easier(self.data[j], fuzzy, self.ConceptWeight) for j in range(len(self.data))])
+                    if i%10 == 0:
+                        print i
+            f = open("Text/easier_graph_json.txt","w")
+            f.write(json.dumps(self.easier_graph)+"\n")
+            f.close()
+
+        # Every Process is Unique
 
         self.eq = range(len(self.data))
-        for i in range(len(self.data)):
-            for j in range(i):
-                if self.easier_graph[i][j] and self.easier_graph[j][i]:
-                    self.eq[i] = j
-                    break
+
+        #self.eq = range(len(self.data))
+        #for i in range(len(self.data)):
+        #    for j in range(i):
+        #        if self.easier_graph[i][j] and self.easier_graph[j][i]:
+        #            self.eq[i] = j
+        #            break
+
 
         ############################
         # Process
@@ -332,18 +359,92 @@ class Knowledge:
     def uniq_id_easier(self, uniq_id1, uniq_id2):
         return self.easier_graph[self.UniqueProcesses[uniq_id1].id][self.UniqueProcesses[uniq_id2].id]
 
+    # Analyze doc_id for article type: article(0), paragraph(1) or sentence(2)
+    def process_doc_id_type(self, id):
+        if self.data[id].doc_id.find("_p") == -1:
+            return 0
+        elif self.data[id].doc_id.find("_s") == -1:
+            return 1
+        else:
+            return 2
+
     def EdgeNum(self):
-        cnt = 0.0
+        cnt = 0
+        edges = []
         for p in self.UniqueProcesses:
             for q in self.UniqueProcesses:
                 #if p != q:
                 if p.id != q.id and len(p.data) != 0:
-                    cnt += self.easier_graph[p.id][q.id]
                     if self.easier_graph[p.id][q.id]:
-                        print int(cnt)
-                        print p.sentence
-                        print q.sentence
+                        cnt += 1
+                        edges.append([p.id, q.id, 0])
+
         return cnt
+
+        ################################################################################
+        # Edge Type
+
+        for edge in edges:
+            type1 = self.process_doc_id_type(edge[0])
+            type2 = self.process_doc_id_type(edge[1])
+            if type1 == 2 and type2 == 2:
+                edge[2] = 1 # inter-sentence edge
+            elif type1 == 2 and type2 == 1:
+                #print "ID:", self.data[edge[0]].doc_id, self.data[edge[1]].doc_id
+                if self.data[edge[0]].doc_id.find(self.data[edge[1]].doc_id) != -1:
+                    edge[2] = 2 # trivial sentence-paragraph edge
+                else:
+                    edge[2] = 3 # non-trivial sentence-paragraph edge
+            elif type1 == 1 and type2 == 1:
+                edge[2] = 4 # inter-paragraph edge
+
+        type_num = [0,0,0,0,0]
+
+        for edge in edges:
+            type_num[edge[2]] += 1
+
+        print "edge distribution:", type_num
+
+        for type in xrange(5):
+            if type == 2: #trivial
+                continue
+            print "#############################################"
+            print "Edge Type ", type, ":"
+            for edge in edges:
+                if edge[2] == type:
+                    print self.data[edge[0]].sentence
+                    print self.data[edge[1]].sentence
+                    print
+
+        print "Total Edges:",cnt
+        return cnt
+
+    def DistanceStats(self):
+        l = len(self.UniqueProcesses)
+        rl = range(l)
+        distance = [[99999999]*(l+1) for j in xrange(l+1)]
+        for i in xrange(l):
+            for j in xrange(l):
+                if i == j:
+                    distance[i][i] = 0
+                elif self.easier_graph[i][j]:
+                    distance[i][j] = 1
+        print "STAGE 1"
+        for k in rl:
+            print k, "/", l
+            for i in rl:
+                for j in rl:
+                    if distance[i][j] > distance[i][k] + distance[k][j]:
+                        distance[i][j] = distance[i][k] + distance[k][j]
+        print "STAGE2"
+        distance_stats = {}
+        for i in xrange(l):
+            for j in xrange(l):
+                if i != j:
+                    if not distance_stats.has_key(distance[i][j]):
+                        distance_stats[distance[i][j]] = 0
+                    distance_stats[distance[i][j]] += 1
+        print distance_stats
 
 
     def ProcessConceptPerSentence(self, seq, lesson_size=0):

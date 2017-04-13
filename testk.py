@@ -78,12 +78,17 @@ def print_all(book_name, char=False):
 #for i in seq:
 #    print k.data[i].sentence
 #print k.proportion_pace(seq)
+##################################################################
+
+
+
 
 
 ##################################################################
 
 #k = Knowledge.Knowledge('Genki12', 0.66)
-k = Knowledge.Knowledge(nhk_easy.read_articles(), 0.7)
+k = Knowledge.Knowledge(nhk_easy.read_articles(), 0.8)
 print len(k.data)
 print len(k.UniqueProcesses)
-print 'Edge Density in Partial Ordering Graph: ', k.EdgeNum()
+#k.EdgeNum()
+k.DistanceStats()
