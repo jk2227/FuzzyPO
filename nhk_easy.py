@@ -107,7 +107,7 @@ def convert_text_to_articles(fn='Text/nhk_easy.txt', if_article=True, if_para=Tr
         f.write(json.dumps(article.__dict__)+'\n')
     f.close()
 
-def read_articles():
+def read_article_list(): # Keep the order
     try:
         f = open('Text/nhk_easy_articles.txt')
     except:
@@ -116,6 +116,10 @@ def read_articles():
     for line in f:
         article_list.append(json.loads(line[:-1], object_hook=
                         lambda s:Article(s["doc_id"], s["text"], s["wordlist"], s["uniq_wordlist"])))
+    return article_list
+
+def read_articles(): # Order might be different in different OS
+    article_list = read_article_list()
     articles = {a.doc_id:a for a in article_list}
     return articles
 

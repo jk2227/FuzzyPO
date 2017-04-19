@@ -89,6 +89,6 @@ def print_all(book_name, char=False):
 #k = Knowledge.Knowledge('Genki12', 0.66)
 k = Knowledge.Knowledge(nhk_easy.read_articles(), 0.8)
 print len(k.data)
-print len(k.UniqueProcesses)
+#print len(k.UniqueProcesses)
 #k.EdgeNum()
 #k.DistanceStats()

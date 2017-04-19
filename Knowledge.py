@@ -3,6 +3,7 @@ import copy
 import random
 import Japanese
 import json
+import codecs
 
 from collections import Counter as mset
 
@@ -24,6 +25,7 @@ class Process:
 
         self.sentence = ""
         self.sorted_data = sorted(self.data)
+        self.mset_data = mset(self.data)
         self.concept = set(self.data)
 
         # Optional
@@ -163,174 +165,130 @@ class Knowledge:
 
 
     # Read data from input
-    # input can be either a string meaning the name of the input file
-    #                  or a doc_id:article dict
+    # input must be a doc_id:article dict
     # First line of the file indicates the lesson_size
     # Data in format of capital letters (char=True) or integers (char=False)
     # Blank line is recognized as an empty process with no concepts
     # Assume data is valid
-    def __init__(self, input, fuzzy = 1.0, char=False):
+    def __init__(self, articles, fuzzy = 1.0, char=False):
 
-        # Read Knowledge
+        if type(articles) != dict:
+            "Construct Knowledge From Articles Error!"
+            return
 
-        if type(input) == str:
-            #
-            input_filename = input
-
-            # GV: Grammar + Vocabulary
-            try:
-                f = open('KnowledgeGV/' + input_filename + '.txt')
-                #f = open('Knowledge/' + input_filename + '.txt')
-            except IOError:
-                f = open('JPEDU/KnowledgeGV/' + input_filename + '.txt')
-                #f = open('JPEDU/Knowledge/' + input_filename + '.txt')
-
-            first_line = True
-            self.data = []
-            for line in f:
-                if first_line:  # read lesson_size
-                    self.input_lesson_size = [int(s) for s in Utl.split(line, ' \n')]
-                    if len(self.input_lesson_size) == 1:  # fixed lesson size
-                        self.input_lesson_size = self.input_lesson_size[0]
-                    first_line = False
-                else:  # read data
-                    if char:
-                        self.data.append(Process(len(self.data), [ord(c) - ord('A') for c in line[:-1]]))
-                    else:
-                        self.data.append(Process(len(self.data), [int(s) for s in Utl.split(line, ' \n')]))
+        try:
+            f = codecs.open("Json/word_index_json.txt","r","utf-8")
+            self.word_index = json.loads(f.readline()[:-1])
             f.close()
 
-            # Read Sentences
-            if char:
-                try:
-                    f = open('Knowledge/' + input_filename + '.txt')
-                except IOError:
-                    f = open('JPEDU/Knowledge/' + input_filename + '.txt')
-                i = 0
-                first = True
-                for line in f:
-                    if first:
-                        first = False
-                        continue
-                    self.data[i].sentence = line[:-1]
-                    i += 1
-                if i != len(self.data):
-                    print 'Knowledge and Sentence not match!'
-                f.close()
-            else:
-                try:
-                    f = open('Sentence/' + input_filename + '.txt')
-                except IOError:
-                    f = open('JPEDU/Sentence/' + input_filename + '.txt')
-                i = 0
-                for line in f:
-                    self.data[i].sentence = line[:-1]
-                    i += 1
-                if i != len(self.data):
-                    print 'Knowledge and Sentence not match!'
-                f.close()
+            f = open("Json/doc_id_to_id_json.txt")
+            self.doc_id_to_id = json.loads(f.readline()[:-1])
+            f.close()
 
+            self.data = [0] * len(self.doc_id_to_id)
+            for article in articles.values():
+                if not self.doc_id_to_id.has_key(article.doc_id):
+                    continue
+                id = self.doc_id_to_id[article.doc_id]
+                p = Process(len(self.data), [self.word_index[w] for w in article.wordlist])
+                p.doc_id = article.doc_id
+                p.sentence= article.text
+                self.data[id] = p
 
-        elif type(input) == dict:
-            #
-            articles = input
-            self.data = []
+            for d in self.data:
+                if d == 0:
+                    print "Read Knoledge.data Error!"
+
+            s = ""
+            i = 0
+            while True:
+                fn = "Json/intersection_graph_json_" + str(i) + ".txt"
+                try:
+                    f = open(fn)
+                except:
+                    break
+                else:
+                    s += f.readline()[:-1]
+                    f.close()
+                    i += 1
+            self.intersection_graph = json.loads(s)
+
+            s = ""
+            i = 0
+            while True:
+                fn = "Json/easier_graph_json_" + str(i) + ".txt"
+                try:
+                    f = open(fn)
+                except:
+                    break
+                else:
+                    s += f.readline()[:-1]
+                    f.close()
+                    i += 1
+            self.easier_graph = json.loads(s)
+
+        except:
 
             all_uniq_wl = []
             for article in articles.values():
                 all_uniq_wl += article.uniq_wordlist
             all_uniq_wl = list(set(all_uniq_wl))
-            word_index = {all_uniq_wl[i]:i + 10000 for i in range(len(all_uniq_wl))}
+            self.word_index = {all_uniq_wl[i]: i + 10000 for i in range(len(all_uniq_wl))}
 
             self.doc_id_to_id = {}
+            self.data = []
 
             for article in articles.values():
                 # Paragraphs and Sentences
                 if article.doc_id.find("_p") == -1:
                     continue
-                p = Process(len(self.data), [word_index[w] for w in article.wordlist])
+                p = Process(len(self.data), [self.word_index[w] for w in article.wordlist])
                 p.doc_id = article.doc_id
-                #########################################################################
-                #########################################################################
-                # TODO: Here process with no concept will be dropped.
-                # TODO: This might not be good forever.
-                #########################################################################
-                #########################################################################
+                p.sentence = article.text
+                # Here process with no concept will be dropped.
                 if len(p.data) == 0:
                     continue
                 self.data.append(p)
-                self.data[-1].sentence = article.text
-                self.doc_id_to_id[self.data[-1].doc_id] = len(self.data) - 1
-
-        ############################
-        # Concepts
-        self.UniqueConcepts = set([])
-        for p in self.data:
-            self.UniqueConcepts |= p.concept
-        self.UniqueConcepts = sorted(list(self.UniqueConcepts))
-        self.UniqueConceptsIndex = {self.UniqueConcepts[i]:i for i in range(len(self.UniqueConcepts))}
-
-        self.ConceptNum = {}
-        for p in self.data:
-            for c in p.data:
-                if self.ConceptNum.has_key(c):
-                    self.ConceptNum[c] += 1
-                else:
-                    self.ConceptNum[c] = 1
-        t = sorted(self.ConceptNum.iteritems(), key=lambda d: d[1], reverse=True)
-        t = [i[0] for i in t]
-        self.ConceptNumRank = {t[i]:i for i in range(len(t))}
-
-        ###############################
-        ###############################
-        ###############################
-        indexed_stoplist = [word_index[w] for w in Japanese.downweighting_stoplist if w in word_index.keys()]
-        self.ConceptWeight = {}
-        for i in range(len(t)):
-            #if i < 0.01 * len(t):
-            if t[i] in indexed_stoplist:
-                self.ConceptWeight[t[i]] = 1
-            else:
-                self.ConceptWeight[t[i]] = 1
+                self.doc_id_to_id[article.doc_id] = len(self.data) - 1
 
 
-        ###############################
-        ###############################
-        ###############################
-        # Easier Graph
-        MAX_JSON_SIZE = 1024*1024*20 - 1
-        self.easier_graph = []
+            self.easier_graph = []
+            self.intersection_graph = [[-1]*len(self.data) for i in xrange(len(self.data))]
+            for i in range(len(self.data)):
+                if i%20 == 0:
+                    print "Generating Graph:", i
+                self.intersection_graph[i][i] = len(self.data[i].data)
+                for j in range(i + 1, len(self.data)):
+                    self.intersection_graph[i][j] = len(
+                        list((mset(self.data[i].mset_data) & self.data[j].mset_data).elements()))
+                    self.intersection_graph[j][i] = self.intersection_graph[i][j]
+            for i in range(len(self.data)):
+                self.easier_graph.append(
+                    [len(self.data[i].data) * fuzzy <= self.intersection_graph[i][j] for j in range(len(self.data))])
 
-        s = ""
-        i = 0
-        while True:
-            fn = "Json/easier_graph_json_" + str(i) + ".txt"
-            try:
-                f = open(fn)
-            except:
-                break
-            else:
-                for line in f:
-                    s += line[:-1]
-                    break
+            f = codecs.open('Json/word_index_json.txt', 'w', 'utf-8')
+            f.write(json.dumps(self.word_index) + "\n")
+            f.close()
+
+            f = open("Json/doc_id_to_id_json.txt","w")
+            f.write(json.dumps(self.doc_id_to_id) + "\n")
+            f.close()
+
+            MAX_JSON_SIZE = 1024 * 1024 * 20 - 1
+            i = 0
+            p = 0
+            s = json.dumps(self.intersection_graph)
+            while p < len(s):
+                q = min(p+MAX_JSON_SIZE, len(s))
+                f = open("Json/intersection_graph_json_" + str(i) + ".txt","w")
+                f.write(s[p:q]+"\n")
+                p = q
                 f.close()
                 i += 1
-        if len(s) > 10:
-            self.easier_graph = json.loads(s)
-        else:
-            self.easier_graph = []
-            if fuzzy == 1.0:
-                for i in range(len(self.data)):
-                    self.easier_graph.append([self.data[i].easier(self.data[j]) for j in range(len(self.data))])
-            else:
-                for i in range(len(self.data)):
-                    self.easier_graph.append([self.data[i].fuzzy_easier(self.data[j], fuzzy, self.ConceptWeight) for j in range(len(self.data))])
-                    if i%10 == 0:
-                        print i
+
             i = 0
             p = 0
             s = json.dumps(self.easier_graph)
-            print len(s)
             while p < len(s):
                 q = min(p+MAX_JSON_SIZE, len(s))
                 f = open("Json/easier_graph_json_" + str(i) + ".txt","w")
@@ -339,41 +297,44 @@ class Knowledge:
                 f.close()
                 i += 1
 
-        # Every Process is Unique
-
-        self.eq = range(len(self.data))
-
-        #self.eq = range(len(self.data))
-        #for i in range(len(self.data)):
-        #    for j in range(i):
-        #        if self.easier_graph[i][j] and self.easier_graph[j][i]:
-        #            self.eq[i] = j
-        #            break
-
-
-        ############################
-        # Process
-        self.UniqueProcesses = [self.data[i] for i in range(len(self.data)) if i == self.eq[i]]
-        for i in range(len(self.UniqueProcesses)):
-            self.UniqueProcesses[i].uniq_id = i
-        for i in range(len(self.data)):
-            self.data[i].uniq_id = self.data[self.eq[i]].uniq_id
+        # Aux
+        self.easiers = [set([j for j in range(len(self.data)) if self.easier_graph[j][i] and i != j]) for i in range(len(self.data))]
+        self.harders = [set([j for j in range(len(self.data)) if self.easier_graph[i][j] and i != j]) for i in range(len(self.data))]
 
         # Init Random
         random.seed()
     # __init__
 
+    #TODO Please Test Before Use
+    def calculate_ConceptWeight(self):
+        ConceptNum = {}
+        for p in self.data:
+            for c in p.data:
+                if ConceptNum.has_key(c):
+                    ConceptNum[c] += 1
+                else:
+                    ConceptNum[c] = 1
+        t = sorted(ConceptNum.iteritems(), key=lambda d: d[1], reverse=True)
+        t = [i[0] for i in t]
+        ConceptNumRank = {t[i]:i for i in range(len(t))}
+
+        ###############################
+        ###############################
+        ###############################
+        indexed_stoplist = [self.word_index[w] for w in Japanese.downweighting_stoplist if w in self.word_index.keys()]
+        ConceptWeight = {}
+        for i in range(len(t)):
+            #if i < 0.01 * len(t):
+            if t[i] in indexed_stoplist:
+                ConceptWeight[t[i]] = 1
+            else:
+                ConceptWeight[t[i]] = 1
+
     def num(self):
         return len(self.data)
 
-    def uniq_num(self):
-        return len(self.UniqueProcesses)
-
     def id_easier(self, id1, id2):
         return self.easier_graph[id1][id2]
-
-    def uniq_id_easier(self, uniq_id1, uniq_id2):
-        return self.easier_graph[self.UniqueProcesses[uniq_id1].id][self.UniqueProcesses[uniq_id2].id]
 
     # Analyze doc_id for article type: article(0), paragraph(1) or sentence(2)
     def process_doc_id_type(self, id):
@@ -385,6 +346,7 @@ class Knowledge:
             return 2
 
     def EdgeNum(self):
+        #TODO: Not Ready to Use, Please Fix before use
         cnt = 0
         edges = []
         for p in self.UniqueProcesses:
