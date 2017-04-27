@@ -2,15 +2,24 @@ from JRecInterface import JRecInterface
 import jsonpickle
 
 interface = JRecInterface()
-req = interface.request()
-print "Document ID:", req.id
-print req.text
-print
+interface.request()
+interface.response(True)
+interface.request()
+interface.response(False)
+interface.request()
+interface.response(True)
 
 # Get Json String
 s = interface.recommender_json_str()
 # Construct from Json String
 interface_t = JRecInterface(recommender_json_str=s)
+
+
+interface = JRecInterface()
+req = interface.request()
+print "Document ID:", req.id
+print req.text
+print
 
 continue_loop = True
 while continue_loop:

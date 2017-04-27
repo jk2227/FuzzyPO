@@ -6,14 +6,13 @@ def iter(interface, textbox, res):
     interface.response(res)
     req = interface.request()
     article = interface.request().article
+    stats = interface.recommender.color_stats()
     textbox.delete('1.0', END)
-    textbox.insert(END, req.id + "\n\n"
-                   #+ "Best: " + str(interface.recommender.recommend_mastery) + " ("
-                   #+ str(interface.recommender.recommend_mastery_lowerbound)+","+ str(interface.recommender.recommend_mastery_upperbound)+")\n\n"
-                   #+ "Current:" + str(interface.recommender.article_mastery(article)) + "\n\n"
-                   #+ "Default: " + str(interface.recommender.default_mastery) + "\n\n"
-                   + "Num Colored: " + str(interface.recommender.num_colored()) + "\n\n"
-                   +  article.text.replace(' ', '\n\n'))
+    textbox.insert(END, "Round: " + str(req.num) + "\n"
+                   + "Doc ID: " + req.id + "\n"
+                   + "Algo: " + req.info + "\n"
+                   + "Colored Yes: " + str(stats[1]) + "  No: " + str(stats[0]) + "\n\n"
+                   +  article.text.replace(' ', '\n'))
 
 def ExampleUI():
     tk = Tk()
@@ -23,13 +22,12 @@ def ExampleUI():
     interface = JRecInterface()
     req = interface.request()
     article = interface.request().article
-    textbox.insert(END, req.id + "\n\n"
-                   #+ "Best: " + str(interface.recommender.recommend_mastery) + " ("
-                   #+ str(interface.recommender.recommend_mastery_lowerbound)+","+ str(interface.recommender.recommend_mastery_upperbound)+")\n\n"
-                   #+ "Current:" + str(interface.recommender.article_mastery(article)) + "\n\n"
-                   #+ "Default: " + str(interface.recommender.default_mastery) + "\n\n"
-                   + "Num Colored: "+ str(interface.recommender.num_colored()) + "\n\n"
-                   + article.text.replace(' ', '\n\n'))
+    stats = interface.recommender.color_stats()
+    textbox.insert(END, "Round: " + str(req.num) + "\n"
+                   + "Doc ID: " + req.id + "\n"
+                   + "Algo: " + req.info + "\n"
+                   + "Colored Yes: " + str(stats[1]) + "  No: " + str(stats[0]) + "\n\n"
+                   +  article.text.replace(' ', '\n'))
     textbox.grid(row=0, column=0, columnspan=5)
     m = IntVar()
     m.set(2)
