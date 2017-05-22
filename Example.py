@@ -1,5 +1,4 @@
 from JRecInterface import JRecInterface
-import jsonpickle
 
 interface = JRecInterface()
 interface.request()

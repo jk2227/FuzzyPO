@@ -5,7 +5,6 @@ import re
 from Article import Article
 from FuzzyPORecommender import FuzzyPORecommender
 from JRecResponse import JRecResponse
-import jsonpickle
 import nhk_easy
 import json
 

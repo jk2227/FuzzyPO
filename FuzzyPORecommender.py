@@ -7,7 +7,7 @@ from Knowledge import *
 from collections import Counter
 import json
 
-FuzzyPORecommender_Version = 20170406
+FuzzyPORecommender_Version = 20170522
 
 PSEODO_COUNT = 1.1
 
