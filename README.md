@@ -15,7 +15,7 @@ Get a New Article:  req = interface.request()
 
                     req.doc_id  //Document ID with article/paragraph/sentence details  e.g. k10010470031000_para1_s2 
                     
-                                // And you can get the first 15 characters of "doc_id" to get the id for URL
+                                // And you can slice the first 15 characters of "doc_id" to get the id for URL
                                 
                     req.text    //Text
                     
