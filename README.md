@@ -13,8 +13,8 @@ Initialize: interface = JRecInterface()
 
 Get a New Article:  req = interface.request()
 
-                    req.id      //Document ID for URL e.g. k10010470031000     req.id = req.doc_id[:15]
-                    
+                    req.id      //Document ID for URL e.g. k10010470031000     req.id = req.doc_id[:15]
+                    
                     req.doc_id  //Document ID with article/paragraph/sentence details  e.g. k10010470031000_para1_s2 
                     
                     req.text    //Text
